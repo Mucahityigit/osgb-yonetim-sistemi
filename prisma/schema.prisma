@@ -1,0 +1,738 @@
+// OSGB Yönetim Sistemi - Prisma Schema
+// RFP v2.0 Bölüm 6 referansıyla tüm tablolar
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUM TANIMLARI
+// ==========================================
+
+enum UserRole {
+  ADMIN    // OSGB Yöneticisi
+  EXPERT   // İş Güvenliği Uzmanı (İGU)
+  CLIENT   // Müşteri Firma Yetkilisi
+  DOCTOR   // İşyeri Hekimi
+  DSP      // Diğer Sağlık Personeli
+}
+
+enum RiskClass {
+  A  // Az Tehlikeli
+  B  // Tehlikeli
+  C  // Çok Tehlikeli
+}
+
+enum IsgKatipStatus {
+  SYNCED
+  PENDING
+  BLOCKED
+  NOT_LINKED
+}
+
+enum VisitType {
+  PERIODIC_CONTROL
+  EMERGENCY
+  RISK_ASSESSMENT
+  TRAINING
+  ACCIDENT_INVESTIGATION
+  ISG_COMMITTEE
+  OTHER
+}
+
+enum CriticalityLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AccidentType {
+  FALL
+  COLLISION
+  ELECTRIC
+  CHEMICAL
+  FIRE
+  VEHICLE
+  CRUSHING
+  CUTTING
+  OTHER
+}
+
+enum SeverityLevel {
+  FIRST_AID
+  OUTPATIENT
+  INPATIENT
+  PERMANENT_DISABILITY
+  DEATH
+}
+
+enum AccidentStatus {
+  OPEN
+  NOTIFIED
+  CLOSED
+}
+
+enum HazardType {
+  FALL_RISK
+  CHEMICAL_EXPOSURE
+  ELECTRIC
+  ERGONOMIC
+  FIRE
+  MACHINE
+  OTHER
+}
+
+enum RootCauseMethod {
+  BARRIER_ANALYSIS
+  WHY_WHY_ANALYSIS
+  FISHBONE
+}
+
+enum CorrectiveStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+  VERIFIED
+}
+
+enum RiskMethod {
+  FINE_KINNEY
+  MATRIX_5X5
+  FMEA
+}
+
+enum RiskAssessmentStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ARCHIVED
+}
+
+enum RiskItemStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum TrainingType {
+  ENTRY
+  PERIODIC_REFRESH
+  TOPIC_SPECIFIC
+  EMERGENCY
+  PPE_USAGE
+}
+
+enum TrainingLocation {
+  WORKPLACE
+  CONFERENCE_HALL
+  ONLINE
+}
+
+enum ExamType {
+  ENTRY
+  PERIODIC
+  EXIT
+}
+
+enum ExamResult {
+  FIT
+  UNFIT
+  CONDITIONAL
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  TEMPORARY
+  SUBCONTRACTOR
+}
+
+enum DocumentCategory {
+  CONTRACT
+  RISK_ASSESSMENT
+  TRAINING
+  WORK_ACCIDENT
+  OCCUPATIONAL_DISEASE
+  MEASUREMENT
+  HEALTH_EXAM
+  EMERGENCY_PLAN
+  PPE_RECORD
+  ISG_COMMITTEE
+  OTHER
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationType {
+  SGK_DEADLINE
+  ISG_KATIP_APPROVAL
+  CONTRACT_EXPIRY
+  VISIT_DEFICIT
+  RISK_ASSESSMENT_DUE
+  TRAINING_DUE
+  HEALTH_EXAM_DUE
+  PPE_RENEWAL
+  ISG_COMMITTEE_DUE
+  MEASUREMENT_DUE
+  VISIT_COMPLETED
+  GENERAL
+}
+
+enum MeasurementType {
+  NOISE
+  DUST
+  GAS
+  VIBRATION
+  CLIMATE
+  LIGHTING
+  RADIATION
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// ==========================================
+// ANA TABLOLAR
+// ==========================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  passwordHash  String    @map("password_hash")
+  role          UserRole  @default(EXPERT)
+  phone         String?
+  certificateType RiskClass?  @map("certificate_type")
+  isgKatipRef   String?   @map("isg_katip_ref")
+  isActive      Boolean   @default(true) @map("is_active")
+  lastLogin     DateTime? @map("last_login")
+  failedLoginAttempts Int @default(0) @map("failed_login_attempts")
+  lockedUntil   DateTime? @map("locked_until")
+  passwordChangedAt DateTime? @map("password_changed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  organizationId String? @map("organization_id")
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  
+  assignments    UserFirmAssignment[] @relation("AssignedUser")
+  assignedBy     UserFirmAssignment[] @relation("AssignedByUser")
+  siteVisits     SiteVisit[]
+  workAccidents  WorkAccident[]
+  nearMissIncidents NearMissIncident[]
+  riskAssessments RiskAssessment[] @relation("CreatedBy")
+  approvedRiskAssessments RiskAssessment[] @relation("ApprovedBy")
+  trainingsCreated Training[]
+  healthExams    HealthExamination[] @relation("DoctorExams")
+  documents      Document[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model Organization {
+  id              String    @id @default(cuid())
+  name            String
+  taxNumber       String    @unique @map("tax_number")
+  sgkNo           String    @map("sgk_no")
+  naceCode        String    @map("nace_code")
+  riskClass       RiskClass @map("risk_class")
+  address         String
+  city            String    @default("")
+  district        String    @default("")
+  lat             Float?
+  lng             Float?
+  employeeCount   Int       @map("employee_count")
+  femaleEmployeeCount Int?  @map("female_employee_count")
+  youngEmployeeCount  Int?  @map("young_employee_count")
+  pregnantEmployeeCount Int? @map("pregnant_employee_count")
+  contactName     String    @map("contact_name")
+  contactPhone    String    @map("contact_phone")
+  contactEmail    String    @map("contact_email")
+  isActive        Boolean   @default(true) @map("is_active")
+  isgKatipStatus  IsgKatipStatus @default(NOT_LINKED) @map("isg_katip_status")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  users           User[]
+  assignments     UserFirmAssignment[]
+  contracts       Contract[]
+  siteVisits      SiteVisit[]
+  workAccidents   WorkAccident[]
+  nearMissIncidents NearMissIncident[]
+  occupationalDiseases OccupationalDisease[]
+  riskAssessments RiskAssessment[]
+  trainings       Training[]
+  employees       Employee[]
+  ppeDistributions PpeDistribution[]
+  isgCommitteeMeetings IsgCommitteeMeeting[]
+  periodicMeasurements PeriodicMeasurement[]
+  healthExaminations HealthExamination[]
+  documents       Document[]
+  invoices        Invoice[]
+
+  @@map("organizations")
+}
+
+model UserFirmAssignment {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  firmId          String    @map("firm_id")
+  roleInAssignment String? @map("role_in_assignment")
+  assignedAt      DateTime  @default(now()) @map("assigned_at")
+  unassignedAt    DateTime? @map("unassigned_at")
+  isgKatipConfirmed Boolean @default(false) @map("isg_katip_confirmed")
+  confirmedAt     DateTime? @map("confirmed_at")
+  assignedById    String?   @map("assigned_by")
+
+  user            User      @relation("AssignedUser", fields: [userId], references: [id])
+  firm            Organization @relation(fields: [firmId], references: [id])
+  assignedByUser  User?     @relation("AssignedByUser", fields: [assignedById], references: [id])
+
+  @@map("user_firm_assignments")
+}
+
+model Contract {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  contractType    String    @map("contract_type")
+  startDate       DateTime  @map("start_date")
+  endDate         DateTime  @map("end_date")
+  monthlyFee      Float     @map("monthly_fee")
+  paymentTerms    String?   @map("payment_terms")
+  isActive        Boolean   @default(true) @map("is_active")
+  isgKatipRef     String?   @map("isg_katip_ref")
+  documentId      String?   @map("document_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  firm            Organization @relation(fields: [firmId], references: [id])
+
+  @@map("contracts")
+}
+
+model SiteVisit {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  expertId        String    @map("expert_id")
+  visitDate       DateTime  @map("visit_date")
+  startTime       DateTime  @map("start_time")
+  endTime         DateTime  @map("end_time")
+  durationMinutes Int       @map("duration_minutes")
+  visitType       VisitType @map("visit_type")
+  contactPersons  String?   @map("contact_persons")
+  description     String
+  findings        String?
+  actions         String?
+  criticalityScores Json?   @map("criticality_scores")
+  gpsLat          Float?    @map("gps_lat")
+  gpsLng          Float?    @map("gps_lng")
+  expertSignature String?   @map("expert_signature")
+  clientSignature String?   @map("client_signature")
+  nextVisitDate   DateTime? @map("next_visit_date")
+  attachments     Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  firm            Organization @relation(fields: [firmId], references: [id])
+  expert          User      @relation(fields: [expertId], references: [id])
+
+  @@map("site_visits")
+}
+
+model WorkAccident {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  expertId        String?   @map("expert_id")
+  accidentDate    DateTime  @map("accident_date")
+  accidentTime    String    @map("accident_time")
+  location        String
+  gpsLat          Float?    @map("gps_lat")
+  gpsLng          Float?    @map("gps_lng")
+  injuredEmployeeId String? @map("injured_employee_id")
+  injuredName     String    @map("injured_name")
+  injuredTcNo     String?   @map("injured_tc_no")
+  injuredAge      Int?      @map("injured_age")
+  injuredDuty     String?   @map("injured_duty")
+  injuredWorkDuration String? @map("injured_work_duration")
+  injuredShift    String?   @map("injured_shift")
+  accidentType    AccidentType @map("accident_type")
+  description     String
+  immediateCause  String?   @map("immediate_cause")
+  rootCause       String?   @map("root_cause")
+  bodyPart        String?   @map("body_part")
+  severity        SeverityLevel
+  lostDaysEstimate Int?     @map("lost_days_estimate")
+  lostDaysActual  Int?      @map("lost_days_actual")
+  witnesses       String?
+  correctiveActions String? @map("corrective_actions")
+  sgkNotificationDate DateTime? @map("sgk_notification_date")
+  sgkRefNumber    String?   @map("sgk_ref_number")
+  sgkDeadline     DateTime  @map("sgk_deadline")
+  status          AccidentStatus @default(OPEN)
+  attachments     Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  firm            Organization @relation(fields: [firmId], references: [id])
+  expert          User?     @relation(fields: [expertId], references: [id])
+  injuredEmployee Employee? @relation(fields: [injuredEmployeeId], references: [id])
+
+  @@map("work_accidents")
+}
+
+model NearMissIncident {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  expertId        String?   @map("expert_id")
+  incidentDate    DateTime  @map("incident_date")
+  incidentTime    String?   @map("incident_time")
+  location        String?
+  involvedPersons String?   @map("involved_persons")
+  description     String
+  potentialConsequence String? @map("potential_consequence")
+  hazardType      HazardType @map("hazard_type")
+  potentialSeverity SeverityLevel? @map("potential_severity")
+  immediateActions String?  @map("immediate_actions")
+  rootCause       String?   @map("root_cause")
+  rootCauseMethod RootCauseMethod? @map("root_cause_method")
+  correctiveActions String? @map("corrective_actions")
+  correctiveStatus CorrectiveStatus @default(OPEN) @map("corrective_status")
+  closedAt        DateTime? @map("closed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  firm            Organization @relation(fields: [firmId], references: [id])
+  expert          User?     @relation(fields: [expertId], references: [id])
+
+  @@map("near_miss_incidents")
+}
+
+model OccupationalDisease {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  employeeId      String?   @map("employee_id")
+  employeeName    String    @map("employee_name")
+  employeeTcNo    String?   @map("employee_tc_no")
+  diagnosis       String
+  icd10Code       String?   @map("icd10_code")
+  diagnosisDate   DateTime  @map("diagnosis_date")
+  diagnosisInstitution String? @map("diagnosis_institution")
+  causativeAgent  String?   @map("causative_agent")
+  exposureDuration String?  @map("exposure_duration")
+  sgkNotificationDate DateTime? @map("sgk_notification_date")
+  sgkRefNumber    String?   @map("sgk_ref_number")
+  sgkDeadline     DateTime  @map("sgk_deadline")
+  jobModification String?   @map("job_modification")
+  status          AccidentStatus @default(OPEN)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  firm            Organization @relation(fields: [firmId], references: [id])
+  employee        Employee? @relation(fields: [employeeId], references: [id])
+
+  @@map("occupational_diseases")
+}
+
+model RiskAssessment {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  expertId        String    @map("expert_id")
+  version         Int       @default(1)
+  method          RiskMethod
+  validUntil      DateTime  @map("valid_until")
+  status          RiskAssessmentStatus @default(DRAFT)
+  approvedById    String?   @map("approved_by")
+  approvedAt      DateTime? @map("approved_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  firm            Organization @relation(fields: [firmId], references: [id])
+  expert          User      @relation("CreatedBy", fields: [expertId], references: [id])
+  approvedByUser  User?     @relation("ApprovedBy", fields: [approvedById], references: [id])
+  items           RiskItem[]
+
+  @@map("risk_assessments")
+}
+
+model RiskItem {
+  id              String    @id @default(cuid())
+  assessmentId    String    @map("assessment_id")
+  section         String?
+  hazardDescription String  @map("hazard_description")
+  probability     Int       // 1-5
+  severity        Int       // 1-5
+  frequency       Int?      // Fine-Kinney için
+  riskScore       Int       @map("risk_score")
+  existingControls String?  @map("existing_controls")
+  residualRisk    Int?      @map("residual_risk")
+  targetRisk      Int?      @map("target_risk")
+  actionPlan      String?   @map("action_plan")
+  responsiblePerson String? @map("responsible_person")
+  dueDate         DateTime? @map("due_date")
+  status          RiskItemStatus @default(OPEN)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  assessment      RiskAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@map("risk_items")
+}
+
+model Training {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  trainingTitle   String    @map("training_title")
+  trainingDate    DateTime  @map("training_date")
+  durationHours   Float     @map("duration_hours")
+  trainerName     String    @map("trainer_name")
+  trainerCert     String?   @map("trainer_cert")
+  trainingType    TrainingType @map("training_type")
+  location        TrainingLocation
+  isOnline        Boolean   @default(false) @map("is_online")
+  content         String?
+  createdById     String    @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  firm            Organization @relation(fields: [firmId], references: [id])
+  createdBy       User      @relation(fields: [createdById], references: [id])
+  participants    TrainingParticipant[]
+
+  @@map("trainings")
+}
+
+model TrainingParticipant {
+  id              String    @id @default(cuid())
+  trainingId      String    @map("training_id")
+  employeeId      String?   @map("employee_id")
+  tcNo            String    @map("tc_no")
+  name            String
+  department      String?
+  attended        Boolean   @default(true)
+  examScore       Int?      @map("exam_score")
+  passed          Boolean?
+  certificateIssued Boolean @default(false) @map("certificate_issued")
+  certificateNo   String?   @map("certificate_no")
+  signatureFile   String?   @map("signature_file")
+
+  training        Training  @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  employee        Employee? @relation(fields: [employeeId], references: [id])
+
+  @@map("training_participants")
+}
+
+model Employee {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  tcNo            String    @map("tc_no")
+  name            String
+  gender          String?
+  birthDate       DateTime? @map("birth_date")
+  department      String?
+  jobTitle        String?   @map("job_title")
+  startDate       DateTime  @map("start_date")
+  endDate         DateTime? @map("end_date")
+  isActive        Boolean   @default(true) @map("is_active")
+  employmentType  EmploymentType @default(FULL_TIME) @map("employment_type")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  firm            Organization @relation(fields: [firmId], references: [id])
+  workAccidents   WorkAccident[]
+  occupationalDiseases OccupationalDisease[]
+  trainingParticipations TrainingParticipant[]
+  ppeDistributions PpeDistribution[]
+  healthExaminations HealthExamination[]
+
+  @@map("employees")
+}
+
+model PpeDistribution {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  employeeId      String    @map("employee_id")
+  ppeType         String    @map("ppe_type")
+  ppeStandard     String?   @map("ppe_standard")
+  quantity        Int       @default(1)
+  distributionDate DateTime @map("distribution_date")
+  distributedBy   String    @map("distributed_by")
+  renewalDate     DateTime? @map("renewal_date")
+  signatureFile   String?   @map("signature_file")
+  isReturned      Boolean   @default(false) @map("is_returned")
+  returnDate      DateTime? @map("return_date")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  firm            Organization @relation(fields: [firmId], references: [id])
+  employee        Employee  @relation(fields: [employeeId], references: [id])
+
+  @@map("ppe_distributions")
+}
+
+model IsgCommitteeMeeting {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  meetingDate     DateTime  @map("meeting_date")
+  location        String?
+  durationMinutes Int?      @map("duration_minutes")
+  agenda          String
+  decisions       String?
+  decisionNumbers String?   @map("decision_numbers")
+  nextMeetingDate DateTime? @map("next_meeting_date")
+  attendance      Json?
+  documentId      String?   @map("document_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  firm            Organization @relation(fields: [firmId], references: [id])
+
+  @@map("isg_committee_meetings")
+}
+
+model PeriodicMeasurement {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  measurementType MeasurementType @map("measurement_type")
+  measurementDate DateTime  @map("measurement_date")
+  performedBy     String    @map("performed_by")
+  accreditationNo String?   @map("accreditation_no")
+  results         Json?
+  limitValues     Json?     @map("limit_values")
+  exceededLimits  Boolean   @default(false) @map("exceeded_limits")
+  nextMeasurementDate DateTime? @map("next_measurement_date")
+  documentId      String?   @map("document_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  firm            Organization @relation(fields: [firmId], references: [id])
+
+  @@map("periodic_measurements")
+}
+
+model HealthExamination {
+  id              String    @id @default(cuid())
+  employeeId      String    @map("employee_id")
+  firmId          String    @map("firm_id")
+  examDate        DateTime  @map("exam_date")
+  examType        ExamType  @map("exam_type")
+  doctorId        String    @map("doctor_id")
+  result          ExamResult
+  conditions      String?
+  nextExamDate    DateTime? @map("next_exam_date")
+  documentId      String?   @map("document_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  employee        Employee  @relation(fields: [employeeId], references: [id])
+  firm            Organization @relation(fields: [firmId], references: [id])
+  doctor          User      @relation("DoctorExams", fields: [doctorId], references: [id])
+
+  @@map("health_examinations")
+}
+
+model Document {
+  id              String    @id @default(cuid())
+  firmId          String?   @map("firm_id")
+  category        DocumentCategory
+  fileName        String    @map("file_name")
+  filePath        String    @map("file_path")
+  fileSize        Int       @map("file_size")
+  mimeType        String    @map("mime_type")
+  uploadDate      DateTime  @default(now()) @map("upload_date")
+  uploadedById    String    @map("uploaded_by")
+  retentionUntil  DateTime? @map("retention_until")
+  isArchived      Boolean   @default(false) @map("is_archived")
+  isEncrypted     Boolean   @default(false) @map("is_encrypted")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  firm            Organization? @relation(fields: [firmId], references: [id])
+  uploadedBy      User      @relation(fields: [uploadedById], references: [id])
+
+  @@map("documents")
+}
+
+model Notification {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  type            NotificationType
+  priority        NotificationPriority @default(MEDIUM)
+  title           String
+  message         String
+  relatedId       String?   @map("related_id")
+  relatedTable    String?   @map("related_table")
+  isRead          Boolean   @default(false) @map("is_read")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  user            User      @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  action          String
+  tableName       String    @map("table_name")
+  recordId        String?   @map("record_id")
+  oldValue        Json?     @map("old_value")
+  newValue        Json?     @map("new_value")
+  ipAddress       String?   @map("ip_address")
+  userAgent       String?   @map("user_agent")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  user            User      @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model Invoice {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  invoiceNumber   String    @unique @map("invoice_number")
+  invoiceDate     DateTime  @map("invoice_date")
+  dueDate         DateTime  @map("due_date")
+  amount          Float
+  taxAmount       Float     @map("tax_amount")
+  totalAmount     Float     @map("total_amount")
+  description     String?
+  status          PaymentStatus @default(PENDING)
+  paidAt          DateTime? @map("paid_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  firm            Organization @relation(fields: [firmId], references: [id])
+
+  @@map("invoices")
+}
+
+model PsychosocialSurvey {
+  id              String    @id @default(cuid())
+  firmId          String    @map("firm_id")
+  surveyDate      DateTime  @map("survey_date")
+  participantCount Int      @map("participant_count")
+  stressScore     Float?    @map("stress_score")
+  burnoutScore    Float?    @map("burnout_score")
+  mobbingScore    Float?    @map("mobbing_score")
+  overallRisk     CriticalityLevel? @map("overall_risk")
+  actionPlan      String?   @map("action_plan")
+  report          String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("psychosocial_surveys")
+}
