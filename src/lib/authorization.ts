@@ -79,23 +79,33 @@ export const ACTION_PERMISSIONS = {
   // Ziyaret Yönetimi
   VISIT_CREATE:   ['ADMIN', 'EXPERT'] as UserRole[],
   VISIT_EDIT:     ['ADMIN', 'EXPERT'] as UserRole[],
+  VISIT_DELETE:   ['ADMIN'] as UserRole[],
 
   // İş Kazası
   ACCIDENT_CREATE:['ADMIN', 'EXPERT', 'DOCTOR'] as UserRole[],
   ACCIDENT_EDIT:  ['ADMIN', 'EXPERT'] as UserRole[],
+  ACCIDENT_DELETE:['ADMIN'] as UserRole[],
 
   // Ramak Kala
   NEAR_MISS_CREATE: ['ADMIN', 'EXPERT'] as UserRole[],
+  NEAR_MISS_EDIT:   ['ADMIN', 'EXPERT'] as UserRole[],
+  NEAR_MISS_DELETE: ['ADMIN'] as UserRole[],
 
   // Meslek Hastalığı
   OCC_DISEASE_CREATE: ['ADMIN', 'DOCTOR'] as UserRole[],
+  OCC_DISEASE_EDIT:   ['ADMIN', 'DOCTOR'] as UserRole[],
+  OCC_DISEASE_DELETE: ['ADMIN'] as UserRole[],
 
   // Risk Değerlendirme
   RISK_CREATE:    ['ADMIN', 'EXPERT'] as UserRole[],
+  RISK_EDIT:      ['ADMIN', 'EXPERT'] as UserRole[],
+  RISK_DELETE:    ['ADMIN'] as UserRole[],
   RISK_APPROVE:   ['ADMIN'] as UserRole[],
 
   // Eğitim
   TRAINING_CREATE:['ADMIN', 'EXPERT'] as UserRole[],
+  TRAINING_EDIT:  ['ADMIN', 'EXPERT'] as UserRole[],
+  TRAINING_DELETE:['ADMIN'] as UserRole[],
 
   // Belge
   DOCUMENT_UPLOAD:['ADMIN', 'EXPERT', 'DOCTOR'] as UserRole[],
@@ -103,18 +113,47 @@ export const ACTION_PERMISSIONS = {
 
   // KKD
   KKD_CREATE:     ['ADMIN', 'EXPERT', 'DSP'] as UserRole[],
+  KKD_EDIT:       ['ADMIN', 'EXPERT', 'DSP'] as UserRole[],
+  KKD_DELETE:     ['ADMIN'] as UserRole[],
 
   // İSG Kurulu
   ISG_MEETING_CREATE: ['ADMIN', 'EXPERT'] as UserRole[],
+  ISG_MEETING_EDIT:   ['ADMIN', 'EXPERT'] as UserRole[],
+  ISG_MEETING_DELETE: ['ADMIN'] as UserRole[],
 
   // Ölçümler
   MEASUREMENT_CREATE: ['ADMIN', 'EXPERT'] as UserRole[],
+  MEASUREMENT_EDIT:   ['ADMIN', 'EXPERT'] as UserRole[],
+  MEASUREMENT_DELETE: ['ADMIN'] as UserRole[],
 
   // Sağlık Muayene
   HEALTH_EXAM_CREATE: ['ADMIN', 'DOCTOR'] as UserRole[],
+  HEALTH_EXAM_EDIT:   ['ADMIN', 'DOCTOR'] as UserRole[],
+  HEALTH_EXAM_DELETE: ['ADMIN'] as UserRole[],
 
   // Psikososyal
   PSYCHO_CREATE:  ['ADMIN', 'EXPERT', 'DOCTOR'] as UserRole[],
+  PSYCHO_EDIT:    ['ADMIN', 'EXPERT', 'DOCTOR'] as UserRole[],
+  PSYCHO_DELETE:  ['ADMIN'] as UserRole[],
+
+  // Sözleşme
+  CONTRACT_EDIT:  ['ADMIN'] as UserRole[],
+  CONTRACT_DELETE:['ADMIN'] as UserRole[],
+
+  // Fatura
+  INVOICE_CREATE: ['ADMIN'] as UserRole[],
+  INVOICE_EDIT:   ['ADMIN'] as UserRole[],
+  INVOICE_DELETE: ['ADMIN'] as UserRole[],
+
+  // Çalışan
+  EMPLOYEE_CREATE:['ADMIN', 'EXPERT'] as UserRole[],
+  EMPLOYEE_EDIT:  ['ADMIN', 'EXPERT'] as UserRole[],
+  EMPLOYEE_DELETE:['ADMIN'] as UserRole[],
+
+  // Kullanıcı
+  USER_CREATE:    ['ADMIN'] as UserRole[],
+  USER_EDIT:      ['ADMIN'] as UserRole[],
+  USER_DELETE:    ['ADMIN'] as UserRole[],
 
   // Bildirim
   NOTIFICATION_MANAGE: ['ADMIN'] as UserRole[],
